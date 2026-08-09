@@ -1,3 +1,8 @@
+const volumeBar = document.getElementById('volume-bar');
+const muteBtn = document.getElementById('mute-btn');
+const volIcon = document.getElementById('vol-icon');
+const muteIcon = document.getElementById('mute-icon');
+
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 const audioPlayer = document.getElementById('audio-player');
@@ -393,4 +398,57 @@ progressBar.addEventListener('input', () => {
 progressBar.addEventListener('change', () => { 
     if (audioPlayer.duration) audioPlayer.currentTime = (progressBar.value/100) * audioPlayer.duration; 
     isDraggingProgress = false; 
+});
+
+// --- Volume Controls ---
+let lastVolume = 1;
+
+// Initialize volume bar color
+volumeBar.style.setProperty('--val', '100%');
+volumeBar.style.background = `linear-gradient(to right, var(--text-main) 100%, var(--progress-bg) 100%)`;
+
+function updateVolumeUI(vol) {
+    const p = vol * 100;
+    volumeBar.style.setProperty('--val', `${p}%`);
+    volumeBar.style.background = `linear-gradient(to right, var(--text-main) ${p}%, var(--progress-bg) ${p}%)`;
+    
+    if (vol === 0) {
+        volIcon.style.display = 'none';
+        muteIcon.style.display = 'block';
+    } else {
+        volIcon.style.display = 'block';
+        muteIcon.style.display = 'none';
+    }
+}
+
+// Dragging the slider
+volumeBar.addEventListener('input', (e) => {
+    const vol = parseFloat(e.target.value);
+    audioPlayer.volume = vol;
+    updateVolumeUI(vol);
+    if (vol > 0) lastVolume = vol; // Remember this so mute can restore it
+});
+
+// Clicking the mute button
+muteBtn.addEventListener('click', () => {
+    if (audioPlayer.volume > 0) {
+        lastVolume = audioPlayer.volume;
+        audioPlayer.volume = 0;
+        volumeBar.value = 0;
+    } else {
+        audioPlayer.volume = lastVolume > 0 ? lastVolume : 1;
+        volumeBar.value = audioPlayer.volume;
+    }
+    updateVolumeUI(audioPlayer.volume);
+});
+
+// Hover color effects for volume bar
+volumeBar.addEventListener('mouseover', () => {
+    const p = volumeBar.value * 100;
+    volumeBar.style.background = `linear-gradient(to right, var(--spotify-green) ${p}%, var(--progress-bg) ${p}%)`;
+});
+
+volumeBar.addEventListener('mouseout', () => {
+    const p = volumeBar.value * 100;
+    volumeBar.style.background = `linear-gradient(to right, var(--text-main) ${p}%, var(--progress-bg) ${p}%)`;
 });
