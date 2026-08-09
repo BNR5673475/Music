@@ -20,10 +20,10 @@ const playlistModal = document.getElementById('playlist-modal');
 const modalPlaylistOptions = document.getElementById('modal-playlist-options');
 const closeModalBtn = document.getElementById('close-modal-btn');
 
-let allLibraryTracks = []; // Master list of everything in DB
-let activeViewTracks = []; // The tracks currently shown on screen
-let savedPlaylists = []; // Array of user-created playlists
-let currentViewId = 'library'; // 'library' or a playlist ID
+let allLibraryTracks = []; 
+let activeViewTracks = []; 
+let savedPlaylists = []; 
+let currentViewId = 'library'; 
 
 let currentPlayingTrack = null; 
 let isDraggingProgress = false;
@@ -31,7 +31,7 @@ let isShuffle = false;
 let playOrder = []; 
 let currentOrderIndex = -1;
 
-let trackIdToAdd = null; // Stores ID temporarily when opening the modal
+let trackIdToAdd = null; 
 
 const defaultCover = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' background='%23282828'><rect width='100%' height='100%' fill='%23282828'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='40' fill='%23b3b3b3'>🎵</text></svg>";
 
@@ -42,7 +42,6 @@ const STORE_TRACKS = 'tracks';
 const STORE_PLAYLISTS = 'playlists';
 
 function initDB() {
-    // Upgraded DB version to 2 to add playlists
     const request = indexedDB.open(DB_NAME, 2);
     
     request.onupgradeneeded = (e) => {
@@ -69,7 +68,6 @@ function loadDataFromDB() {
         const playlistStore = trans.objectStore(STORE_PLAYLISTS);
         playlistStore.getAll().onsuccess = (e2) => {
             savedPlaylists = e2.target.result || [];
-            
             renderSidebarPlaylists();
             switchView('library');
         };
@@ -120,13 +118,10 @@ function renderSidebarPlaylists() {
 function switchView(viewId) {
     currentViewId = viewId;
     
-    // Update active classes
     navLibrary.classList.toggle('active', viewId === 'library');
     document.querySelectorAll('.playlist-nav-item').forEach(el => {
         el.classList.remove('active');
-        if (el.textContent === savedPlaylists.find(p => p.id === viewId)?.name) {
-            el.classList.add('active');
-        }
+        if (el.textContent === savedPlaylists.find(p => p.id === viewId)?.name) el.classList.add('active');
     });
 
     if (viewId === 'library') {
@@ -135,7 +130,6 @@ function switchView(viewId) {
     } else {
         const pl = savedPlaylists.find(p => p.id === viewId);
         mainViewTitle.textContent = pl ? pl.name : "Playlist";
-        // Filter the library tracks by the IDs saved in this playlist
         activeViewTracks = allLibraryTracks.filter(t => pl.trackIds.includes(t.id));
     }
     
@@ -162,15 +156,12 @@ function renderMainTrackList() {
             <button class="add-to-playlist-btn" title="Add to Playlist">➕</button>
         `;
         
-        // Play song on click
         li.addEventListener('click', (e) => {
-            // Prevent playing if they clicked the add button
             if(e.target.classList.contains('add-to-playlist-btn')) return; 
             currentOrderIndex = playOrder.indexOf(index); 
             loadAndPlayTrack(index); 
         });
 
-        // Add button logic
         const addBtn = li.querySelector('.add-to-playlist-btn');
         addBtn.addEventListener('click', () => openPlaylistModal(track.id));
 
@@ -194,7 +185,6 @@ function openPlaylistModal(trackId) {
                 if (!pl.trackIds.includes(trackIdToAdd)) {
                     pl.trackIds.push(trackIdToAdd);
                     savePlaylistToDB(pl);
-                    // Refresh view if we are currently looking at that playlist
                     if(currentViewId === pl.id) switchView(pl.id);
                 }
                 playlistModal.style.display = 'none';
@@ -312,11 +302,13 @@ function extractTags(file) {
     });
 }
 
+// THIS IS THE UPDATED FUNCTION
 async function handleFiles(files) {
     const audioFiles = Array.from(files).filter(file => file.type.startsWith('audio/'));
     if (audioFiles.length === 0) return;
     
     let addedCount = 0;
+    let newlyAddedTrackIds = []; // Track the new IDs
 
     for (const file of audioFiles) {
         if (allLibraryTracks.some(t => t.id === file.name)) continue;
@@ -333,16 +325,24 @@ async function handleFiles(files) {
         saveTrackToDB(trackRecord);
         trackRecord.url = URL.createObjectURL(file);
         allLibraryTracks.push(trackRecord);
+        newlyAddedTrackIds.push(trackRecord.id); // Save ID for playlist checking
         addedCount++;
     }
 
     if(addedCount > 0) {
-        // If they drop files while viewing a custom playlist, jump back to Library to show the new files
+        // Context-Aware Playlist Addition:
+        // If the user isn't in 'library' view, they must be in a custom playlist view.
         if (currentViewId !== 'library') {
-            switchView('library');
-        } else {
-            switchView('library'); // Just re-renders it properly
+            const activePlaylist = savedPlaylists.find(p => p.id === currentViewId);
+            if (activePlaylist) {
+                // Add the newly dropped track IDs directly into this playlist
+                activePlaylist.trackIds.push(...newlyAddedTrackIds);
+                savePlaylistToDB(activePlaylist);
+            }
         }
+        
+        // Re-render whatever view we are currently on so the songs show up immediately
+        switchView(currentViewId); 
     }
 }
 
