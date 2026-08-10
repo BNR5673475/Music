@@ -1,1 +1,4 @@
-its an web MP3 player i had AI make for school since everything is blocked
+Drag in your MP3s, create playlists, have fun listening to music
+ps this is created by AI (ik ew)
+
+The website linked is unblocked as of now
